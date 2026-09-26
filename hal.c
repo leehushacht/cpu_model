@@ -74,3 +74,12 @@ bool get_flag(const VM* vm, FLAG_REG flag_i){
     return ((vm->flags_reg >> flag_i) & 0x0001) == 1;
 }
 
+uint16_t read_flags16(const VM* vm)
+{
+    return (vm->flags_reg | 0xf002);
+}
+
+void write_flags16(VM* vm, uint16_t val)
+{
+    vm->flags_reg = val & 0x0FD5;
+}

@@ -78,6 +78,21 @@ static void test(VM* vm){
         0xFE, 0xC3,             // INC BL               -> BX=FFFF
         0xFF, 0x0D,             // DEC word [DI]        -> mem[0210]=0FFF
         0xFE, 0x4C, 0x02,       // DEC byte [SI+2]      -> mem[0202]=59
+                // --- segment push/pop: swap DS<->ES, observe, swap back ---
+        0x1E, 0x06, 0x1F, 0x07, // PUSH DS; PUSH ES; POP DS; POP ES -> DS=0800, ES=0700
+        0x8C, 0xC0,             // MOV AX, ES           -> AX=0700
+        0x8C, 0xDB,             // MOV BX, DS           -> BX=0800
+        0x1E, 0x06, 0x1F, 0x07, // swap back            -> DS=0700, ES=0800
+        // --- PUSH/POP r/m16 through memory ---
+        0xFF, 0x34,             // PUSH word [SI]       (CDAB)
+        0x8F, 0x05,             // POP  word [DI]       -> mem[0210]=CDAB
+        // --- PUSHF/POPF round trip ---
+        0x31, 0xC9,             // XOR CX, CX           -> ZF=1 PF=1
+        0x9C,                   // PUSHF                (saves ZF=1 PF=1)
+        0x40,                   // INC AX               -> AX=0701, ZF=0 PF=0
+        0xA3, 0x20, 0x02,       // MOV [0220], AX       -> mem[0220]=0701
+        0xA1, 0x00, 0x02,       // MOV AX, [0200]       -> AX=CDAB
+        0x9D,                   // POPF                 -> ZF=1 PF=1 restored
         // --- stop ---
         0xF4                    // HLT
     };

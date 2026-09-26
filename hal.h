@@ -27,4 +27,7 @@ uint16_t read_ip16(const VM* vm); // R
 void set_flag(VM* vm, FLAG_REG flag_i, bool lit); // W
 bool get_flag(const VM* vm, FLAG_REG flag_i); // R
 
+uint16_t read_flags16(const VM* vm);
+void write_flags16(VM* vm, uint16_t val);
+
 #endif
