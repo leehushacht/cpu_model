@@ -1,14 +1,19 @@
 #include "decode.h"
 void handle_unknown_opcode(VM* vm, uint8_t cur_opcode) {
-    (void)cur_opcode; // later add to the print
-    printf("Error: Unimplemented Opcode at IP: %04X\n", read_ip16(vm) - 1);
+    printf("Error: Unimplemented Opcode at IP: %04X opcode: %02X\n", read_initial_ip_op16(vm), cur_opcode);
     turn_off_vm(vm);
 }
 
-bool check_modRM_validation(VM* vm, ModRM m, uint8_t expected_reg, uint8_t cur_opcode)
+bool check_mod_rm_validation(VM* vm, ModRM m, uint8_t allowed_regs, uint8_t cur_opcode, bool must_m)
 {
-    // in the future you will have to add newer things -> check and read later
-    if(m.reg == expected_reg) return true;
+    // allowed_regs -> each 1 bit is allowed reg
+    // must_m -> mod != 3 (only mem)
+    if (must_m && m.mod == 3)
+    {
+        handle_unknown_opcode(vm, cur_opcode);
+        return false;
+    }
+    if ((allowed_regs & (1 << m.reg)) != 0) return true;
     handle_unknown_opcode(vm, cur_opcode);
     return false;
 }
@@ -19,12 +24,12 @@ static uint32_t get_final_address(VM* vm, uint8_t mod, uint8_t rm){
     switch (rm)
     {
         
-        case 0: base_address = read_reg16(vm, BX) + read_reg16(vm, SI); break;
-        case 1: base_address = read_reg16(vm, BX) + read_reg16(vm, DI); break;
-        case 2: base_address = read_reg16(vm, BP) + read_reg16(vm, SI); segment_reg_index = SS; break;
-        case 3: base_address = read_reg16(vm, BP) + read_reg16(vm, DI); segment_reg_index = SS; break;
-        case 4: base_address = read_reg16(vm, SI); break;
-        case 5: base_address = read_reg16(vm, DI); break;
+        case 0: base_address = read_r16(vm, BX) + read_r16(vm, SI); break;
+        case 1: base_address = read_r16(vm, BX) + read_r16(vm, DI); break;
+        case 2: base_address = read_r16(vm, BP) + read_r16(vm, SI); segment_reg_index = SS; break;
+        case 3: base_address = read_r16(vm, BP) + read_r16(vm, DI); segment_reg_index = SS; break;
+        case 4: base_address = read_r16(vm, SI); break;
+        case 5: base_address = read_r16(vm, DI); break;
         case 6:
         {
             if (mod == 0)
@@ -33,10 +38,10 @@ static uint32_t get_final_address(VM* vm, uint8_t mod, uint8_t rm){
             }
             else
             {
-                 base_address = read_reg16(vm, BP); segment_reg_index = SS; break;
+                 base_address = read_r16(vm, BP); segment_reg_index = SS; break;
             }
         } 
-        case 7: base_address = read_reg16(vm, BX); break;      
+        case 7: base_address = read_r16(vm, BX); break;      
     }
     switch (mod)
     {
@@ -52,13 +57,13 @@ static uint32_t get_final_address(VM* vm, uint8_t mod, uint8_t rm){
         }
     }
     
-    final_address = get_address(read_segreg16(vm, segment_reg_index), base_address); // later do read_reg16(vm, BX) for segreg also
+    final_address = get_address(read_sreg16(vm, segment_reg_index), base_address); // later do read_reg16(vm, BX) for segreg also
 
     return final_address;
 }
 
 // < ------------ Mod RM Area ------------ > //
-ModRM decodeModRM(VM *vm){
+ModRM decode_mod_rm(VM *vm){
     // 00 = mod | 000 = reg | 000 = RM
     uint8_t cur_byte = fetch_byte(vm);
     ModRM m;
@@ -68,39 +73,39 @@ ModRM decodeModRM(VM *vm){
     return m;
 }
 
-uint32_t modRMaddress(VM* vm, ModRM m){
+uint32_t mod_rm_address(VM* vm, ModRM m){
     if (m.mod == 3){
         return 0;
     }
     return get_final_address(vm, m.mod, m.rm);
 }
 
-uint16_t read_RM16(VM *vm, ModRM m, uint32_t address){
+uint16_t read_rm16(VM *vm, ModRM m, uint32_t address){
     if (m.mod == 3){
-        return read_reg16(vm, m.rm);
+        return read_r16(vm, m.rm);
     }
     return read_mem16(vm, address);
 }
 
-void write_RM16(VM *vm, ModRM m, uint32_t address, uint16_t v){
+void write_rm16(VM *vm, ModRM m, uint32_t address, uint16_t v){
     if (m.mod == 3){
-        write_reg16(vm, m.rm, v);
+        write_r16(vm, m.rm, v);
     }
     else{
         write_mem16(vm, address, v);
     }
 }
-uint8_t read_RM8(VM *vm, ModRM m, uint32_t address){
+uint8_t read_rm8(VM *vm, ModRM m, uint32_t address){
     if (m.mod == 3){
-        return read_reg8(vm, m.rm);
+        return read_r8(vm, m.rm);
     }
     return read_mem8(vm, address);
 }
 
 
-void write_RM8(VM *vm, ModRM m, uint32_t address, uint8_t v){
+void write_rm8(VM *vm, ModRM m, uint32_t address, uint8_t v){
     if (m.mod == 3){
-        write_reg8(vm, m.rm, v);
+        write_r8(vm, m.rm, v);
     }
     else{
         write_mem8(vm, address, v);

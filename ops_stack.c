@@ -3,42 +3,44 @@
 
 
 // 50 - 57
-void PUSH_reg16(VM* vm, uint8_t cur_opcode){
+void H_PUSH_r16(VM* vm, uint8_t cur_opcode){
     uint8_t reg_i = (cur_opcode & 0x07);
-    PUSH_16(vm, read_reg16(vm, reg_i));
+    // by the 8086 rules: if SP pushed -> push the after decrement value *(sp - 2)
+    if (reg_i == SP) {push16(vm, read_r16(vm, reg_i) - 2);}
+    else {push16(vm, read_r16(vm, reg_i));}
 }
 
 // 58 - 5F
-void POP_reg16(VM* vm, uint8_t cur_opcode){
+void H_POP_r16(VM* vm, uint8_t cur_opcode){
     uint8_t reg_i = (cur_opcode & 0x07);
-    write_reg16(vm, reg_i, POP_16(vm));
+    write_r16(vm, reg_i, pop16(vm));
 }
 
 // segreg stack op
-void PUSH_segreg16(VM* vm, uint8_t cur_opcode){
+void H_PUSH_sreg(VM* vm, uint8_t cur_opcode){
     uint8_t reg_i = ((cur_opcode >> 3) & 0x07);
-    PUSH_16(vm, read_segreg16(vm, reg_i));
+    push16(vm, read_sreg16(vm, reg_i));
 }
-void POP_segreg16(VM* vm, uint8_t cur_opcode){
+void H_POP_sreg(VM* vm, uint8_t cur_opcode){
     uint8_t reg_i = ((cur_opcode >> 3) & 0x07);
-    write_segreg16(vm, reg_i, POP_16(vm));
+    write_sreg16(vm, reg_i, pop16(vm));
 }
-void POP_rm16(VM* vm, uint8_t cur_opcode)
+void H_POP_rm16(VM* vm, uint8_t cur_opcode)
 {
-    ModRM m = decodeModRM(vm);
-    if(!check_modRM_validation(vm, m, 0, cur_opcode)) return;
-    uint32_t final_address = modRMaddress(vm, m);
-    write_RM16(vm, m, final_address, POP_16(vm));
+    ModRM m = decode_mod_rm(vm);
+    if(!check_mod_rm_validation(vm, m, REG_ONLY(0), cur_opcode, false)) return;
+    uint32_t final_address = mod_rm_address(vm, m);
+    write_rm16(vm, m, final_address, pop16(vm));
 }
 
-void PUSHF(VM* vm, uint8_t cur_opcode)
+void H_PUSHF(VM* vm, uint8_t cur_opcode)
 {
     (void)cur_opcode;
-    PUSH_16(vm, read_flags16(vm));
+    push16(vm, read_flags16(vm));
 }
 
-void POPF(VM* vm, uint8_t cur_opcode)
+void H_POPF(VM* vm, uint8_t cur_opcode)
 {
     (void)cur_opcode;
-    write_flags16(vm, POP_16(vm));
+    write_flags16(vm, pop16(vm));
 }

@@ -1,0 +1,27 @@
+Two kinds of function, told apart by the first character.
+* Handler — a function the opcode table calls, signature (vm, cur_opcode).
+* Operation — everything else: HAL, decode, ALU, stack, control-flow operations, lifecycle, init.
+
+* Handlers: H_ + MNEMONIC + operand tokens.
+  Start with H_.
+  Then the instruction mnemonic in caps, as the Intel manual writes it: MOV, PUSH, RET, HLT.
+  Shared handlers use a stand-in word in caps: ALU (the eight-op rows), JCC (70–7F), GRP_FE / GRP_FF (groups).
+  Then the operand form, if the mnemonic alone is ambiguous: destination first, then source, lowercase, no "to".
+  Operand tokens are fixed: r8 r16 rm8 rm16 imm8 imm16 sreg acc moffs rel8 rel16 far. Width is the trailing number on the token, never a word.
+  Examples: H_MOV_rm8_r8, H_MOV_r8_imm8, H_PUSH_r16, H_PUSHF, H_ALU_rm16_imm8, H_JCC_rel8, H_RETF, H_GRP_FF, H_HLT.
+
+* Operations: lowercase snake_case, nothing else.
+  No capitals anywhere: decode_modrm, read_rm16, jmp_abs, push16.
+  HAL accessors are verb-first: read_ / write_, get_flag / set_flag.
+
+  Init functions are init_<what>.
+  Operations never fetch from the instruction stream; if it calls fetch_* or decode_modrm, it is a handler and must be named as one.
+  Files.
+
+* Handlers live in ops_<family>.c and are declared only in ops.h.
+  A family exposes operations to other files only through its own ops_<family>.h.
+  Group dispatchers and H_HLT live in opcodes.c beside the table and are static.
+  Consequence to check by eye. In init_opcode_table, every right-hand side begins with H_. Inside any handler, no call begins with H_.Two kinds of function, told apart by the first character.
+  Handler — a function the opcode table calls, signature (vm, cur_opcode).
+  Operation — everything else: HAL, decode, ALU, stack, control-flow operations, lifecycle, init.
+

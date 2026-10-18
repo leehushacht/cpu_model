@@ -52,8 +52,8 @@ uint8_t fetch_byte(VM* vm);
 uint16_t fetch_word(VM* vm);
 
 //in progress
-void PUSH_16(VM* vm, uint16_t value);
-uint16_t POP_16(VM* vm);
+void push16(VM* vm, uint16_t value);
+uint16_t pop16(VM* vm);
 
 
 

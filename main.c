@@ -5,20 +5,21 @@
 
 static void print_state(const VM* vm){
     printf("AX=%04X BX=%04X CX=%04X DX=%04X SI=%04X DI=%04X SP=%04X ES=%04X IP=%04X\n",
-        read_reg16(vm, AX), read_reg16(vm, BX), read_reg16(vm, CX), read_reg16(vm, DX),
-        read_reg16(vm, SI), read_reg16(vm, DI), read_reg16(vm, SP),
-        read_segreg16(vm, ES), read_ip16(vm));
+        read_r16(vm, AX), read_r16(vm, BX), read_r16(vm, CX), read_r16(vm, DX),
+        read_r16(vm, SI), read_r16(vm, DI), read_r16(vm, SP),
+        read_sreg16(vm, ES), read_ip16(vm));
     printf("CF=%d ZF=%d SF=%d OF=%d PF=%d AF=%d\n",
         get_flag(vm, FLAG_CF), get_flag(vm, FLAG_ZF), get_flag(vm, FLAG_SF),
         get_flag(vm, FLAG_OF), get_flag(vm, FLAG_PF), get_flag(vm, FLAG_AF));
-    printf("mem[DS:0200]=%04X mem[DS:0202]=%02X mem[DS:0210]=%04X\n",
-        read_mem16(vm, get_address(read_segreg16(vm, DS), 0x0200)),
-        read_mem8 (vm, get_address(read_segreg16(vm, DS), 0x0202)),
-        read_mem16(vm, get_address(read_segreg16(vm, DS), 0x0210)));
+    printf("mem[DS:0200]=%04X mem[DS:0202]=%02X mem[DS:0210]=%04X mem[DS:0220]=%04X\n",
+        read_mem16(vm, get_address(read_sreg16(vm, DS), 0x0200)),
+        read_mem8 (vm, get_address(read_sreg16(vm, DS), 0x0202)),
+        read_mem16(vm, get_address(read_sreg16(vm, DS), 0x0210)),
+        read_mem16(vm, get_address(read_sreg16(vm, DS), 0x0220)));
 }
 
 static void test(VM* vm){
-    uint32_t a = get_address(read_segreg16(vm, CS), read_ip16(vm));
+    uint32_t a = get_address(read_sreg16(vm, CS), read_ip16(vm));
     const uint8_t prog[] = {
         // --- MOV immediate ---
         0xB8, 0x34, 0x12,       // MOV AX, 1234h
@@ -94,7 +95,56 @@ static void test(VM* vm){
         0xA1, 0x00, 0x02,       // MOV AX, [0200]       -> AX=CDAB
         0x9D,                   // POPF                 -> ZF=1 PF=1 restored
         // --- stop ---
-        0xF4                    // HLT
+                // --- LOOP: sum 1..5 into DX ---
+        0x31, 0xD2,             // XOR DX, DX
+        0xB9, 0x05, 0x00,       // MOV CX, 5
+        0x01, 0xCA,             // top:  ADD DX, CX
+        0xE2, 0xFC,             // LOOP top              -> DX=000F, CX=0
+        // --- Jcc taken / not taken ---
+        0x83, 0xFA, 0x0F,       // CMP DX, 0Fh
+        0x75, 0x04,             // JNE fail              (not taken)
+        0xB0, 0x01,             // MOV AL, 1
+        0xEB, 0x02,             // JMP skip
+        0xB0, 0x00,             // fail: MOV AL, 0       (skipped)
+        // --- JCXZ ---
+        0xE3, 0x02,             // skip: JCXZ cxz        (taken, CX=0)
+        0xB4, 0xFF,             // MOV AH, FFh           (skipped)
+        0xB4, 0x02,             // cxz: MOV AH, 2        -> AX=0201
+        // --- LOOPNZ: count BX up until BX==3 ---
+        0xB9, 0x0A, 0x00,       // MOV CX, 10
+        0xBB, 0x00, 0x00,       // MOV BX, 0
+        0x43,                   // lz:  INC BX
+        0x83, 0xFB, 0x03,       // CMP BX, 3
+        0xE0, 0xFA,             // LOOPNZ lz             -> BX=0003, CX=0007
+        // --- CALL near + RET imm16 ---
+        0xBE, 0x11, 0x11,       // MOV SI, 1111h
+        0x56,                   // PUSH SI
+        0xE8, 0x02, 0x00,       // CALL sub1
+        0xEB, 0x06,             // JMP after1
+        0xBE, 0x22, 0x22,       // sub1: MOV SI, 2222h
+        0xC2, 0x02, 0x00,       // RET 2                 -> SP back to FF00
+        // --- indirect JMP via register, indirect CALL via memory ---
+        0xBF, 0xCA, 0x01,       // after1: MOV DI, 01CAh (tgt)
+        0xFF, 0xE7,             // JMP DI
+        0xB6, 0xEE,             // MOV DH, EEh           (skipped)
+        0xC7, 0x06, 0x00, 0x03, 0xD7, 0x01, // tgt: MOV word [0300], 01D7h (sub2)
+        0xBF, 0x00, 0x03,       // MOV DI, 0300h
+        0xFF, 0x15,             // CALL word [DI]
+        0xEB, 0x03,             // JMP after2
+        0xB6, 0x55,             // sub2: MOV DH, 55h     -> DX=550F
+        0xC3,                   // RET
+        // --- far CALL / RETF ---
+        0x9A, 0xE1, 0x01, 0x00, 0x07, // after2: CALL 0700:01E1 (farsub)
+        0xEB, 0x03,             // JMP after3
+        0xB1, 0x77,             // farsub: MOV CL, 77h   -> CX=0077
+        0xCB,                   // RETF
+        // --- far JMP via memory pointer ---
+        0xC7, 0x06, 0x10, 0x03, 0xF7, 0x01, // after3: MOV word [0310], 01F7h (farend)
+        0xC7, 0x06, 0x12, 0x03, 0x00, 0x07, // MOV word [0312], 0700h
+        0xBF, 0x10, 0x03,       // MOV DI, 0310h
+        0xFF, 0x2D,             // JMP far [DI]
+        0xB5, 0xEE,             // MOV CH, EEh           (skipped)
+        0xF4                    // farend: HLT
     };
     for (size_t i = 0; i < sizeof prog; i++) write_mem8(vm, a + i, prog[i]);
 }
@@ -102,11 +152,11 @@ static void test(VM* vm){
 static void prepare_segment_registers(VM* vm)
 {
     // for now this value -> later give more thought on it
-    write_segreg16(vm, CS, 0x0700);
-    write_segreg16(vm, DS, 0x0700);
-    write_segreg16(vm, ES, 0x0700);
-    write_segreg16(vm, SS, 0x0700);
-    write_reg16(vm, SP, 0xFF00); // for test
+    write_sreg16(vm, CS, 0x0700);
+    write_sreg16(vm, DS, 0x0700);
+    write_sreg16(vm, ES, 0x0700);
+    write_sreg16(vm, SS, 0x0700);
+    write_r16(vm, SP, 0xFF00); // for test
     write_ip16(vm, 0x0100);
 
 }
@@ -122,10 +172,11 @@ static void prepare_flags(VM* vm)
     set_flag(vm, FLAG_PF, false);
 
 }
-int main(){
+int main(void){
     
     init_opcode_table();
-    VM* vm = create_vm();;
+    VM* vm = create_vm();
+    if(vm == NULL) return -1;
     turn_on_vm(vm);
 
     

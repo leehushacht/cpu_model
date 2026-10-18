@@ -1,0 +1,20 @@
+ - add ENUM for 8 bits registers
+ - fix all masks: one way only
+ - mov the cur_opcode from the vm to somewhere else
+ - set flags start bits
+ - add const for vm where it needs
+ - add HLT opcode (very importent!)
+ - handle_current_opcode use ip - 1 (change it later)
+ - fix th PUSH SP special case (8086 not 80286)
+ - 
+
+
+
+
+etc - very important!
+*
+Opcode groups 80–83, D0–D3, F6/F7, FE/FF each fan out on the ModRM reg field into up to 8 different instructions.
+Your flat 256-entry table can't express that;
+you'll need a second-level dispatch for those rows.
+Decide now whether that's a second table or a switch inside a group handler, so the ~20 handlers you write next follow one pattern
+

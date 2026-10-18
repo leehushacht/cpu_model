@@ -15,6 +15,7 @@ struct VM {
     uint16_t seg_reg[4]; 
     uint16_t flags_reg; 
     uint16_t ip;
+    uint16_t initial_ip_op;
     bool is_running;
     bool is_halted;
 };

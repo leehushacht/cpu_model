@@ -17,7 +17,7 @@ void destroy_vm(VM* vm)
 }
 
 uint8_t fetch_byte(VM* vm){
-    uint32_t cur_address = get_address(read_segreg16(vm, CS), read_ip16(vm));
+    uint32_t cur_address = get_address(read_sreg16(vm, CS), read_ip16(vm));
     uint8_t code = read_mem8(vm, cur_address); // byte
     write_ip16(vm, read_ip16(vm) + 1);
     return code;
@@ -46,14 +46,14 @@ void resume_vm(VM* vm){
 bool is_vm_halted(VM* vm){
     return vm->is_halted;
 }
-void PUSH_16(VM* vm, uint16_t value){
-    write_reg16(vm, SP, read_reg16(vm, SP) - 2);
-    write_mem16(vm, get_address(read_segreg16(vm, SS), read_reg16(vm, SP)), value);
+void push16(VM* vm, uint16_t value){
+    write_r16(vm, SP, read_r16(vm, SP) - 2);
+    write_mem16(vm, get_address(read_sreg16(vm, SS), read_r16(vm, SP)), value);
 
 }
-uint16_t POP_16(VM* vm){
-    uint16_t val = read_mem16(vm, get_address(read_segreg16(vm, SS), read_reg16(vm, SP)));
-    write_reg16(vm, SP, read_reg16(vm, SP) + 2);
+uint16_t pop16(VM* vm){
+    uint16_t val = read_mem16(vm, get_address(read_sreg16(vm, SS), read_r16(vm, SP)));
+    write_r16(vm, SP, read_r16(vm, SP) + 2);
     return val;
 }
 
@@ -64,6 +64,9 @@ void run_vm(VM* vm){
 
         // check hlt
         if(is_vm_halted(vm)) break; // later just continue when intterups will add
+        
+        write_initial_ip_op16(vm, read_ip16(vm));
+
         // fetch
         uint8_t opcode = fetch_byte(vm);
         opcode_main_handle_list[opcode](vm, opcode);
