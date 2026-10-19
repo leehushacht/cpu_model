@@ -79,7 +79,7 @@ static void test(VM* vm){
         0xFE, 0xC3,             // INC BL               -> BX=FFFF
         0xFF, 0x0D,             // DEC word [DI]        -> mem[0210]=0FFF
         0xFE, 0x4C, 0x02,       // DEC byte [SI+2]      -> mem[0202]=59
-                // --- segment push/pop: swap DS<->ES, observe, swap back ---
+        // --- segment push/pop: swap DS<->ES, observe, swap back ---
         0x1E, 0x06, 0x1F, 0x07, // PUSH DS; PUSH ES; POP DS; POP ES -> DS=0800, ES=0700
         0x8C, 0xC0,             // MOV AX, ES           -> AX=0700
         0x8C, 0xDB,             // MOV BX, DS           -> BX=0800
@@ -94,8 +94,7 @@ static void test(VM* vm){
         0xA3, 0x20, 0x02,       // MOV [0220], AX       -> mem[0220]=0701
         0xA1, 0x00, 0x02,       // MOV AX, [0200]       -> AX=CDAB
         0x9D,                   // POPF                 -> ZF=1 PF=1 restored
-        // --- stop ---
-                // --- LOOP: sum 1..5 into DX ---
+        // --- LOOP: sum 1..5 into DX ---
         0x31, 0xD2,             // XOR DX, DX
         0xB9, 0x05, 0x00,       // MOV CX, 5
         0x01, 0xCA,             // top:  ADD DX, CX
@@ -144,9 +143,38 @@ static void test(VM* vm){
         0xBF, 0x10, 0x03,       // MOV DI, 0310h
         0xFF, 0x2D,             // JMP far [DI]
         0xB5, 0xEE,             // MOV CH, EEh           (skipped)
-        0xF4                    // farend: HLT
+        0xE9, 0x06, 0x02        // farend: JMP 0400h     -> continue in int_test
     };
     for (size_t i = 0; i < sizeof prog; i++) write_mem8(vm, a + i, prog[i]);
+
+    // ---------- interrupt test: program at CS:0400 ----------
+    const uint8_t int_test[] = {
+        0xB8, 0x01, 0x02,       // MOV AX, 0201h
+        0x50,                   // PUSH AX
+        0x9D,                   // POPF                  -> IF=1 CF=1
+        0xBB, 0x05, 0x00,       // MOV BX, 0005h
+        0xCD, 0x21,             // INT 21h               -> jumps to the ISR at 0700:0500
+        0xB9, 0x34, 0x12,       // MOV CX, 1234h         (runs only if IRET came back here)
+        0x9C,                   // PUSHF
+        0x5A,                   // POP DX                -> DX = flags after IRET
+        0xF4                    // HLT
+    };
+    // ---------- the interrupt handler (ISR) at CS:0500 ----------
+    const uint8_t isr[] = {
+        0x9C,                   // PUSHF
+        0x5F,                   // POP DI                -> DI = flags inside the ISR
+        0x43,                   // INC BX                -> BX = 0006
+        0x31, 0xF6,             // XOR SI, SI            -> trashes the flags (CF=0 ZF=1)
+        0xCF                    // IRET
+    };
+    uint32_t t = get_address(read_sreg16(vm, CS), 0x0400);
+    for (size_t i = 0; i < sizeof int_test; i++) write_mem8(vm, t + i, int_test[i]);
+    uint32_t h = get_address(read_sreg16(vm, CS), 0x0500);
+    for (size_t i = 0; i < sizeof isr; i++) write_mem8(vm, h + i, isr[i]);
+
+    // ---------- the loader fills IVT slot 21h: 0700:0500 ----------
+    write_mem16(vm, 0x21 * 4,     0x0500);  // offset
+    write_mem16(vm, 0x21 * 4 + 2, 0x0700);  // segment
 }
 
 static void prepare_segment_registers(VM* vm)

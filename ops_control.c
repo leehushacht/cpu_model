@@ -171,11 +171,40 @@ void H_RETF(VM* vm, uint8_t cur_opcode)
     (void)cur_opcode;
     ret_far(vm);
 }
-// c2
+// ca
 void H_RETF_imm16(VM* vm, uint8_t cur_opcode)
 {
     (void)cur_opcode;
     uint16_t imm = fetch_word(vm);
     ret_far(vm);
     write_r16(vm, SP, read_r16(vm, SP) + imm);
+}
+
+// interrups
+
+static void do_interrupt(VM* vm, uint8_t n)
+{
+    uint16_t entry = (uint16_t)n << 2;
+    uint16_t flags = read_flags16(vm);
+    push16(vm, flags);
+    set_flag(vm, FLAG_IF, false);
+    set_flag(vm, FLAG_TF, false);
+
+    uint16_t new_ip = read_mem16(vm, (uint32_t)entry);
+    uint16_t new_cs = read_mem16(vm, (uint32_t)entry + 2);
+    call_abs_far(vm, new_ip, new_cs);
+}
+// cd
+void H_INT_imm8(VM* vm, uint8_t cur_opcode)
+{
+    (void)cur_opcode;
+    uint8_t n = fetch_byte(vm);
+    do_interrupt(vm, n);
+}
+// cf
+void H_IRET(VM* vm, uint8_t cur_opcode)
+{
+    (void)cur_opcode;
+    ret_far(vm);
+    write_flags16(vm, pop16(vm));
 }

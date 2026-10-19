@@ -7,6 +7,7 @@
 #define PROGRAM_AREA 0x01000
 #define IO_AREA 0xFA000
 #define KERNEL_AREA 0xFFFF0
+#define IVT_AREA 0x00000
 
 
 struct VM {

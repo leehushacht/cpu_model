@@ -159,6 +159,9 @@ void init_opcode_table(void) {
     opcode_main_handle_list[0xc2] = H_RET_imm16;
     opcode_main_handle_list[0xca] = H_RETF_imm16;
 
+    opcode_main_handle_list[0xcd] = H_INT_imm8;
+    opcode_main_handle_list[0xcf] = H_IRET;
+    
     for(int i = 0xa0; i <= 0xa3; i++){
         opcode_main_handle_list[i] = H_MOV_acc_moffs;
     }

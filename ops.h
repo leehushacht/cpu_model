@@ -93,4 +93,9 @@ void H_RET_imm16(VM* vm, uint8_t cur_opcode);
 // ca
 void H_RETF_imm16(VM* vm, uint8_t cur_opcode);
 
+// cd
+void H_INT_imm8(VM* vm, uint8_t cur_opcode);
+// cf
+void H_IRET(VM* vm, uint8_t cur_opcode);
+
 #endif
