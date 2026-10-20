@@ -1,7 +1,8 @@
 # Makefile - VM_Model_001
 CC      = cc
-CFLAGS  = -Wall -Wextra -g -std=c11 -MMD -MP
-SRCS    = $(wildcard *.c)
+DIRS    = machine loader
+CFLAGS  = -Wall -Wextra -g -std=c11 -MMD -MP $(addprefix -I,$(DIRS))
+SRCS    = $(wildcard *.c) $(foreach d,$(DIRS),$(wildcard $(d)/*.c))
 OBJS    = $(SRCS:.c=.o)
 DEPS    = $(OBJS:.o=.d)
 TARGET  = emulator
