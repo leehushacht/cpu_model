@@ -1,6 +1,7 @@
 #include "decode.h"
 #include "ops.h"
 #include "ops_control.h"
+#include "do_int_n.h"
 
 // For absolute jumps within the same segment (if needed elsewhere)
 void jmp_abs(VM* vm, uint16_t absolute_offset)
@@ -182,7 +183,7 @@ void H_RETF_imm16(VM* vm, uint8_t cur_opcode)
 
 // interrups
 
-static void do_interrupt(VM* vm, uint8_t n)
+void do_interrupt(VM* vm, uint8_t n)
 {
     uint16_t entry = (uint16_t)n << 2;
     uint16_t flags = read_flags16(vm);
@@ -194,12 +195,26 @@ static void do_interrupt(VM* vm, uint8_t n)
     uint16_t new_cs = read_mem16(vm, (uint32_t)entry + 2);
     call_abs_far(vm, new_ip, new_cs);
 }
+
 // cd
 void H_INT_imm8(VM* vm, uint8_t cur_opcode)
 {
     (void)cur_opcode;
     uint8_t n = fetch_byte(vm);
-    do_interrupt(vm, n);
+    switch (n)
+    {
+    case 0x10:
+        do_int_10h(vm);
+        break;
+    case 0x21:
+        do_int_21h(vm);
+        break;
+    // more to come ...
+    default:
+        do_interrupt(vm, n);
+        break;
+    }
+
 }
 // cf
 void H_IRET(VM* vm, uint8_t cur_opcode)

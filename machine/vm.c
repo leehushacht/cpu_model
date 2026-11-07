@@ -34,7 +34,7 @@ void turn_on_vm(VM* vm){
 void turn_off_vm(VM* vm){
     vm->is_running = false;
 }
-bool is_vm_running(VM* vm){
+bool is_vm_running(const VM* vm){
     return vm->is_running;
 }
 void halt_vm(VM* vm){
@@ -43,7 +43,7 @@ void halt_vm(VM* vm){
 void resume_vm(VM* vm){
     vm->is_halted = false;
 }
-bool is_vm_halted(VM* vm){
+bool is_vm_halted(const VM* vm){
     return vm->is_halted;
 }
 void push16(VM* vm, uint16_t value){

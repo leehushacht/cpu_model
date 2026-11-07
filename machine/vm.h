@@ -42,11 +42,11 @@ void destroy_vm(VM* vm);
 // need a check
 void turn_on_vm(VM* vm);
 void turn_off_vm(VM* vm);
-bool is_vm_running(VM* vm);
+bool is_vm_running(const VM* vm);
 
 void halt_vm(VM* vm);
 void resume_vm(VM* vm);
-bool is_vm_halted(VM* vm);
+bool is_vm_halted(const VM* vm);
 
 uint8_t fetch_byte(VM* vm);
 uint16_t fetch_word(VM* vm);
